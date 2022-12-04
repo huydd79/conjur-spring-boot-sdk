@@ -1,11 +1,15 @@
 package com.cyberark.conjur.springboot.core.env;
 
+import java.nio.file.Files;
+import java.nio.file.Paths;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.cyberark.conjur.sdk.AccessToken;
 import com.cyberark.conjur.sdk.ApiClient;
 import com.cyberark.conjur.sdk.Configuration;
+
 /**
  * 
  * This is the connection creation singleton class with conjur vault by using
@@ -26,13 +30,28 @@ public final class ConjurConnectionManager {
 	}
 
 	private void getConnection() { 
+		String token="";		
+		try {
+			token = Files.readString(Paths.get(System.getenv("CONJUR_ACCESS_TOKEN_FILE")));
+		} catch (Exception e){
+			logger.error(e.getMessage());
+		}
+
 		try {
 			ApiClient client = Configuration.getDefaultApiClient();
-			AccessToken accesToken = client.getNewAccessToken();
-			if (accesToken == null) {
-				logger.error("Access token is null, Please enter proper environment variables.");
+			if (token.isBlank()){
+				AccessToken accesToken = client.getNewAccessToken();
+				if (accesToken == null) {
+					logger.error("Access token is null, Please enter proper environment variables.");
+				}
+				token = accesToken.getHeaderValue();
+				logger.info("Token does not exist, getting new token.");					
+				logger.debug("New token: " + token);
+			} else {
+				logger.info("Token existed, using current value.");
+				logger.debug("Current token: " + token);
 			}
-			String token = accesToken.getHeaderValue();
+
 			client.setAccessToken(token);
 			Configuration.setDefaultApiClient(client);
 			logger.debug("Connection with conjur is successful");
